@@ -1,0 +1,74 @@
+
+name: Networked Software CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config -q
+
+      - name: Start services
+        run: docker compose up -d --build
+
+      
+      - name: Wait for services to become healthy
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8000/health >/dev/null && \
+               curl -fsS http://localhost:8001/health >/dev/null; then
+              echo "Both services are healthy."
+              exit 0
+            fi
+            echo "Waiting for services..."
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs
+          echo "Services did not become healthy in time."
+          exit 1
+
+      - name: Run integration tests
+        run: |
+          mkdir -p reports
+          python -m pytest -v tests/test_gateway_integration.py \
+            --junitxml=reports/junit-results.xml \
+            --html=reports/test-report.html \
+            --self-contained-html
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-reports
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop services
+        if: always()
+        run: docker compose down --volumes
