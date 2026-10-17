@@ -153,15 +153,27 @@ The workflow runs on pushes to `main`, pull requests targeting `main`, and manua
 
 ## Integration Test Results
 
-The initial GitHub Actions run completed successfully:
+The integration test suite currently contains six tests, all passing in the latest local run.
 
-- **Tests passed:** 5
-- **Execution time:** 0.08 seconds
+- **Tests passed:** 6
+- **Execution time:** 2.80 seconds
 - **JUnit XML report:** Generated
 - **HTML report:** Generated
-- **GitHub Actions artifact:** Available for download
 
-The five tests cover gateway user retrieval, invalid user IDs, missing users, User Service health, and Gateway Service health.
+### Test Coverage
+
+| Test Scenario | Expected Result |
+|---|---|
+| Retrieve an existing user through the gateway | HTTP 200 |
+| Invalid user ID | HTTP 400 |
+| Missing user | HTTP 404 |
+| User Service health check | HTTP 200 |
+| Gateway Service health check | HTTP 200 |
+| User Service unavailable | HTTP 502 |
+
+The network failure test starts a temporary Gateway Service configured to contact an unavailable local port. It verifies that the gateway returns HTTP 502 with the expected `User service unavailable` error message.
+
+The GitHub Actions workflow generates JUnit XML and HTML reports and uploads them as the `integration-test-reports` artifact.
 
 ## Test Reports
 
